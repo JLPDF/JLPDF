@@ -1,0 +1,29 @@
+// Extrair e processar trechos entre as tags <laco>
+$obj_param = $pdf->obj_param;
+
+// Extraia os dados com quiser de $obj_param, podendo criar variaveis, fazer consultas SQL (inclusive com os metodos do Framework)
+
+//Segue esboço... propriedades sensiveis foram substituidas por {seudadoaqui}, mas é só uma ideia de estrutura, você deverá montar seus loops com os dados que necessitar
+ $loops['laco1'] =
+  [
+      ['lbl1' => 'Cliente:', 'dado1' => mb_strtoupper( $obj_param->{seudadoaqui} ), 'lbl2' => 'Idade:', 'dado2' => mb_strtoupper( $idadeCliente['anos'] . "A " . $idadeCliente['meses'] . "M " . $idadeCliente['dias'] . "D" )],
+      ['lbl1' => 'Solicitante:', 'dado1' => mb_strtoupper( $solicitante->{seudadoaqui} ), 'lbl2' => 'Cadastro:', 'dado2' => mb_strtoupper( date('d/m/Y H:i:s', strtotime($obj_param->{seudadoaqui})) )],
+      ['lbl1' => 'Convênio:', 'dado1' => mb_strtoupper( $reqProc[0]->{seudadoaqui} ), 'lbl2' => 'Posto:', 'dado2' => mb_strtoupper( $req->{seudadoaqui} )],
+      ['lbl1' => 'Total:', 'dado1' => mb_strtoupper( 'R$ ' . number_format($obj_param->{seudadoaqui},2,',','.') ), 'lbl2' => 'Emissão:', 'dado2' => mb_strtoupper( date('d/m/Y H:i:s', strtotime($req->{seudadoaqui})) )]
+  ];
+  
+  foreach($reqProc as $rp){
+      $loops['laco2'][] = ['dado1' => $rp->{seudadoaqui}, 'dado2' => $rp->{seudadoaqui} ?? '', 'dado3' => (!empty($rp->{seudadoaqui}) ? date('d/m/Y', strtotime($rp->{seudadoaqui})) : "Atend: " . date('d/m/Y', strtotime($rp->{seudadoaqui})))];
+  }
+
+
+// Percorrer array e substituir as tags de loop do template
+        foreach ($loops as $k => $l) {
+            self::setLoop(
+                $k,
+                $l,
+                (object)[
+                    'fl_zebrado' => true,
+                ]
+            );
+        }
