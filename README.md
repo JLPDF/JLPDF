@@ -1,6 +1,9 @@
 # JLPDF
 Classe de extensão do TCPDF para facilitar a confecção de relatórios em PHP, especialmente para MadBuilder e Adianti Framework
 
+# Condições de licença personalizada
+Estão restritas ao participantes desta organização a patente da solução (JLPDF), dando-se o crédito pelo requisito ao TCPDF, deixando autorizado as solicitações de pull request, fork (desde quê se dê o crédito/não pode se passar por autor), e livre uso sem royalties.
+
 # Instalação
 
 1- Crie uma tabela em seu banco de dados executando "sql/schema.sql"
