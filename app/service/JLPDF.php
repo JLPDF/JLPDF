@@ -96,11 +96,18 @@ class JLPDF extends TCPDF
         
         self::$template = $template;
         
-        // Extrair variáveis do array $data
-        extract($data);
+        if(!empty($data)){
+            // Extrair variáveis do array $data
+            extract($data);
+        }
         
         // Executar código de avaliação (cuidado com a segurança)
         eval($codigo_eval);
+        
+        if(!empty($data)){
+            // Extrair variáveis do array $data
+            extract($data);
+        }
         
         // Substituir placeholders no template pelos valores do array $data
         foreach ($data as $key => $value) {
