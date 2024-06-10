@@ -5,7 +5,7 @@ CREATE TABLE jlpdf_bd(
       `dt_alteracao` datetime   , 
       `ativo` char  (1)   NOT NULL    DEFAULT 'S', 
       `logo_img` text   , 
-      `size` char  (2)   NOT NULL    DEFAULT 'A4', 
+      `size` varchar  (5)   NOT NULL    DEFAULT 'A4', 
       `orientacao` char  (1)     DEFAULT 'P', 
       `template` text   NOT NULL  , 
       `codigo_eval` text   NOT NULL  , 
@@ -13,6 +13,7 @@ CREATE TABLE jlpdf_bd(
       `font_size_default` int   NOT NULL    DEFAULT 10, 
       `font_family_default` varchar  (50)   NOT NULL    DEFAULT 'helvetica', 
       `fl_etiqueta` char  (1)     DEFAULT 'N', 
+      `altura_doc` int   , 
  PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci; 
 
  
