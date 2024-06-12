@@ -2,9 +2,9 @@
 Classe de extensão do TCPDF para facilitar a confecção de relatórios em PHP, especialmente para MadBuilder e Adianti Framework
 
 # Requisitos
-tecnickcom/tcpdf
-chillerlan/php-qrcode
-picqer/php-barcode-generator
+* tecnickcom/tcpdf
+* chillerlan/php-qrcode
+* picqer/php-barcode-generator
 
 # Instalação
 
