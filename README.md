@@ -9,6 +9,8 @@ Os detentores do JLPDF se reservam o direito de criar uma versão paga, utilizan
 * chillerlan/php-qrcode
 * picqer/php-barcode-generator
 
+- Em breve soltaremos mais exemplos e tentaremos ser o mais didático possível, nos deem feedback, vamos melhorando com o tempo...
+
 # Instalação
 
 1- Crie uma tabela em seu banco de dados executando "sql/schema.sql"
