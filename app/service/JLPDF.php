@@ -17,6 +17,8 @@ class JLPDF extends TCPDF
     private static $jl_loops_static = [];
     private static $html_result = '';
     private static $pdf = '';
+    private static $jlHeader = '';
+    private static $jlFooter = '';
     
     /* NÃO PODE TER __CONSTRUCT, POIS CAUSA CONFLITO COM O __CONSTRUCT DO TCPDF */
     
@@ -25,15 +27,17 @@ class JLPDF extends TCPDF
     public function generatePDF($jlpdf_nm, $data = [])
     {
         try {
-                
-            self::$jl_loops_static = $pdf->jl_loops;
+             
+            /* Cria uma cópia fiel do $this em self::$pdf, permitindo a manipulação por métodos não estáticos
+            e garantido a integridade */
+            self::sincronizarPdf($this);
+            
+            self::$jl_loops_static = self::$pdf->jl_loops;
             TTransaction::open(MAIN_DATABASE);
             
                 $jlpdf_bd = JlpdfBd::where('key_name', '=', $jlpdf_nm)->first();
         
                 if ($jlpdf_bd) {
-                    
-                    self::$pdf = $this;
                     
                     // Tratar caso flag template_file esteja ativa
                     self::template_file($jlpdf_bd);
@@ -43,7 +47,7 @@ class JLPDF extends TCPDF
                     $this->setPageOrientation($jlpdf_bd->orientacao);
                     $this->jlpdf_bd = $jlpdf_bd;
                     
-                    $html = self::processTemplate($jlpdf_bd->template, $jlpdf_bd->codigo_eval, $data, $this);
+                    $html = self::processTemplate($jlpdf_bd->template, $jlpdf_bd->codigo_eval, $data ?? [], $this);
                     
                     // de($html);
                     
@@ -114,6 +118,7 @@ class JLPDF extends TCPDF
                                 $this->AddPage();
                                 $this->writeHTML($html, true, false, true, false, '');
                             } else {
+                                // de($arr_page);
                                 $this->setPageFormat($size, $orientacao);
                                 $i = 0;
                                 foreach($arr_page as $page){
@@ -147,9 +152,13 @@ class JLPDF extends TCPDF
             TTransaction::rollback();
         }
     }
-
     
-    public static function processTemplate($template, $codigo_eval, $data, $pdf)
+    public static function sincronizarPdf(&$pdf)
+    {
+        self::$pdf = &$pdf;
+    }
+    
+    public static function processTemplate($template, $codigo_eval, $data, &$pdf)
     {
         
         // self::$jl_loops_static = $pdf->jl_loops;
@@ -169,9 +178,10 @@ class JLPDF extends TCPDF
             $attributes = self::extractAttributes($attributesStr);
             $attributes = (object)$attributes;
             
-            $obj_jlpdf_inc = JlpdfBd::where('key_name', '=', $content)->first();
+            // $obj_jlpdf_inc = JlpdfBd::where('key_name', '=', $content)->first();
             
-            $html_processado = self::processInclude($obj_jlpdf_inc->template, $obj_jlpdf_inc->codigo_eval, $data, $pdf);
+            self::sincronizarPdf($pdf);
+            $html_processado = self::processInclude($content);
             
             self::$template = str_replace($match[0], $html_processado, self::$template);
             
@@ -185,6 +195,12 @@ class JLPDF extends TCPDF
         
         // Executar código de avaliação (cuidado com a segurança)
         eval($codigo_eval);
+        
+        /* Se forem utilizado métodos do mecanismo construct, o self::$html_result será diferente de vazio
+        Logo ele não seguirá o mecanismo de replace */
+        if(!empty(self::$html_result)){
+            self::$template = self::$html_result;
+        }
         
         if(!empty($data)){
             // Extrair variáveis do array $data
@@ -251,55 +267,62 @@ class JLPDF extends TCPDF
         
         
         // Processar rodapé
-        $pattern = '/<rodape>(.*?)<\/rodape>/s';
-        preg_match_all($pattern, self::$template, $matches);
-        
-        foreach ($matches[1] as $match) {
-            $rodape = $match;
-            // Substituir placeholders no rodapé
-            foreach ($data as $key => $value) {
-                if (!is_array($value)) {
-                    $rodape = str_replace('{$' . $key . '}', $value, $rodape);
+        if(!empty(self::$jlFooter)){
+            $pdf->setRodape(self::$jlFooter);
+        } else {
+            $pattern = '/<rodape>(.*?)<\/rodape>/s';
+            preg_match_all($pattern, self::$template, $matches);
+            
+            foreach ($matches[1] as $match) {
+                $rodape = $match;
+                // Substituir placeholders no rodapé
+                foreach ($data as $key => $value) {
+                    if (!is_array($value)) {
+                        $rodape = str_replace('{$' . $key . '}', $value, $rodape);
+                    }
                 }
+                $rodape = str_replace('{PDF_MARGIN_LEFT}', PDF_MARGIN_LEFT, $rodape);
+                $pdf->setRodape($rodape);
+                self::$template = str_replace('<rodape>' . $match . '</rodape>', '', self::$template);
             }
-            $rodape = str_replace('{PDF_MARGIN_LEFT}', PDF_MARGIN_LEFT, $rodape);
-            $pdf->setRodape($rodape);
-            self::$template = str_replace('<rodape>' . $match . '</rodape>', '', self::$template);
         }
         
         // Processar cabeçalho
-        $pattern = '/<cabecalho>(.*?)<\/cabecalho>/s';
-        preg_match_all($pattern, self::$template, $matches);
-        
-        foreach ($matches[1] as $match) {
-            $cabecalho = $match;
-            // Substituir placeholders no cabeçalho
-            foreach ($data as $key => $value) {
-                if (!is_array($value)) {
-                    $cabecalho = str_replace('{$' . $key . '}', $value, $cabecalho);
+        if(!empty(self::$jlHeader)){
+            $pdf->setCabecalho(self::$jlHeader);
+        } else {
+            $pattern = '/<cabecalho>(.*?)<\/cabecalho>/s';
+            preg_match_all($pattern, self::$template, $matches);
+            
+            foreach ($matches[1] as $match) {
+                $cabecalho = $match;
+                // Substituir placeholders no cabeçalho
+                foreach ($data as $key => $value) {
+                    if (!is_array($value)) {
+                        $cabecalho = str_replace('{$' . $key . '}', $value, $cabecalho);
+                    }
                 }
+                $cabecalho = str_replace('{PDF_MARGIN_LEFT}', PDF_MARGIN_LEFT, $cabecalho);
+                // de($cabecalho);
+                $pdf->setCabecalho($cabecalho);
+                self::$template = str_replace('<cabecalho>' . $match . '</cabecalho>', '', self::$template);
             }
-            $cabecalho = str_replace('{PDF_MARGIN_LEFT}', PDF_MARGIN_LEFT, $cabecalho);
-            // de($cabecalho);
-            $pdf->setCabecalho($cabecalho);
-            self::$template = str_replace('<cabecalho>' . $match . '</cabecalho>', '', self::$template);
+            // de(self::$template);
         }
-        // de(self::$template);
         
         return self::$template;
     }
     
-    public static function processInclude($template, $codigo_eval, $data, $pdf)
+    public static function processInclude($key_name, $processHeaderFooter = true)
     {
         
-        // self::$jl_loops_static = $pdf->jl_loops;
+        $obj_jlpdf_inc = JlpdfBd::where('key_name', '=', $key_name)->first();
+        $template = $obj_jlpdf_inc->template;
+        $codigo_eval = $obj_jlpdf_inc->codigo_eval;
+        $data = [];
+        $pdf = &self::$pdf;
         
         $const = 'constant';
-        
-        if(!empty($data)){
-            // Extrair variáveis do array $data
-            extract($data);
-        }
         
         // Executar código de avaliação (cuidado com a segurança)
         eval($codigo_eval);
@@ -367,42 +390,43 @@ class JLPDF extends TCPDF
         }
         /* *********** */
         
-        
-        // Processar rodapé
-        $pattern = '/<rodape>(.*?)<\/rodape>/s';
-        preg_match_all($pattern, $template, $matches);
-        
-        foreach ($matches[1] as $match) {
-            $rodape = $match;
-            // Substituir placeholders no rodapé
-            foreach ($data as $key => $value) {
-                if (!is_array($value)) {
-                    $rodape = str_replace('{$' . $key . '}', $value, $rodape);
+        if($processHeaderFooter === true){
+            // Processar rodapé
+            $pattern = '/<rodape>(.*?)<\/rodape>/s';
+            preg_match_all($pattern, $template, $matches);
+            
+            foreach ($matches[1] as $match) {
+                $rodape = $match;
+                // Substituir placeholders no rodapé
+                foreach ($data as $key => $value) {
+                    if (!is_array($value)) {
+                        $rodape = str_replace('{$' . $key . '}', $value, $rodape);
+                    }
                 }
+                $rodape = str_replace('{PDF_MARGIN_LEFT}', PDF_MARGIN_LEFT, $rodape);
+                $pdf->setRodape($rodape);
+                $template = str_replace('<rodape>' . $match . '</rodape>', '', $template);
             }
-            $rodape = str_replace('{PDF_MARGIN_LEFT}', PDF_MARGIN_LEFT, $rodape);
-            $pdf->setRodape($rodape);
-            $template = str_replace('<rodape>' . $match . '</rodape>', '', $template);
-        }
-        
-        // Processar cabeçalho
-        $pattern = '/<cabecalho>(.*?)<\/cabecalho>/s';
-        preg_match_all($pattern, $template, $matches);
-        
-        foreach ($matches[1] as $match) {
-            $cabecalho = $match;
-            // Substituir placeholders no cabeçalho
-            foreach ($data as $key => $value) {
-                if (!is_array($value)) {
-                    $cabecalho = str_replace('{$' . $key . '}', $value, $cabecalho);
+            
+            // Processar cabeçalho
+            $pattern = '/<cabecalho>(.*?)<\/cabecalho>/s';
+            preg_match_all($pattern, $template, $matches);
+            
+            foreach ($matches[1] as $match) {
+                $cabecalho = $match;
+                // Substituir placeholders no cabeçalho
+                foreach ($data as $key => $value) {
+                    if (!is_array($value)) {
+                        $cabecalho = str_replace('{$' . $key . '}', $value, $cabecalho);
+                    }
                 }
+                $cabecalho = str_replace('{PDF_MARGIN_LEFT}', PDF_MARGIN_LEFT, $cabecalho);
+                // de($cabecalho);
+                $pdf->setCabecalho($cabecalho);
+                $template = str_replace('<cabecalho>' . $match . '</cabecalho>', '', $template);
             }
-            $cabecalho = str_replace('{PDF_MARGIN_LEFT}', PDF_MARGIN_LEFT, $cabecalho);
-            // de($cabecalho);
-            $pdf->setCabecalho($cabecalho);
-            $template = str_replace('<cabecalho>' . $match . '</cabecalho>', '', $template);
+            // de($template);
         }
-        // de($template);
         
         return $template;
     }
@@ -726,8 +750,18 @@ class JLPDF extends TCPDF
         return $attributes;
     }
     
+    
+    
     public static function addReportFile($nome){
-        //self::$html_result .= _parser($file);
+        return self::processInclude($nome, false);
+    }
+    
+    public static function setJlHeader($html){
+        self::$jlHeader = $html;
+    }
+    
+    public static function setJlFooter($html){
+        self::$jlFooter = $html;
     }
     
     public static function AddString($str){
@@ -747,7 +781,7 @@ class JLPDF extends TCPDF
         eval('$temp = "' . addslashes($tagHTML) . '";');
 
         //--> remove a tag passada da string
-        return self::removeHTMLTag($tag,$temp);;
+        return self::removeHTMLTag($tag,$temp);
        
     }
     
@@ -768,8 +802,10 @@ class JLPDF extends TCPDF
     }
     
     public static function commitReport(){
-        self::$template = self::$html_result;
-        self::processTemplate(self::$template, '', [], self::$pdf);
+        if(!empty(self::$html_result)){
+            self::$template = self::$html_result;
+        }
+        // return self::processTemplate(self::$template, '', [], self::$pdf);
     }
     
     public static function loopToHTML($tag, $objeto){
