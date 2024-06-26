@@ -15,6 +15,8 @@ class JLPDF extends TCPDF
 {
     private static $template = '';
     private static $jl_loops_static = [];
+    private static $html_result = '';
+    private static $pdf = '';
     
     /* NÃO PODE TER __CONSTRUCT, POIS CAUSA CONFLITO COM O __CONSTRUCT DO TCPDF */
     
@@ -30,6 +32,8 @@ class JLPDF extends TCPDF
                 $jlpdf_bd = JlpdfBd::where('key_name', '=', $jlpdf_nm)->first();
         
                 if ($jlpdf_bd) {
+                    
+                    self::$pdf = $this;
                     
                     // Tratar caso flag template_file esteja ativa
                     self::template_file($jlpdf_bd);
@@ -144,14 +148,14 @@ class JLPDF extends TCPDF
         }
     }
 
+    
     public static function processTemplate($template, $codigo_eval, $data, $pdf)
     {
         
         // self::$jl_loops_static = $pdf->jl_loops;
-        
         $const = 'constant';
-        
         self::$template = $template;
+        
         
         $pattern = '/<include_other(.*?)>(.*?)<\/include_other>/s';
         preg_match_all($pattern, self::$template, $matches, PREG_SET_ORDER);
@@ -467,13 +471,23 @@ class JLPDF extends TCPDF
                 $i++;
             }
             
+                
         if($obj_param->fl_automaticReplace !== false){
             $template = str_replace($matches[0][0], $loop_template, $template);
         } else {
             $template = str_replace($matches[0][0], $loop_template . PHP_EOL . $matches[0][0], $template);
         }
+           
+           
+        if( ($obj_param->onlyReturn ?? false) !== true){
+            
+            self::$template = $template;
         
-        self::$template = $template;
+        } else {
+            
+            return $template;
+            
+        }
         
     }
     
@@ -491,9 +505,13 @@ class JLPDF extends TCPDF
     
     
     
-    public static function removeTag($tag, $replace = null){
+    public static function removeTag($tag, $replace = null, $tag_html = null){
         
-        $template = self::$template;
+        if(empty($tag_html)){
+            $template = self::$template;
+        } else {
+            $template = $tag_html;
+        }
         
         $pattern = '/<' . $tag . '(.*?)>/s';
         preg_match_all($pattern, $template, $matches);
@@ -508,7 +526,12 @@ class JLPDF extends TCPDF
         preg_match_all($pattern, $template, $matches);
         
         $template = str_replace($matches[0][0], $replace ?? '', $template);
-        self::$template = $template;
+        
+        if(empty($tag_html)){
+            self::$template = $template;
+        } else {
+            return $template;
+        }
         
     }
     
@@ -701,6 +724,64 @@ class JLPDF extends TCPDF
         }
 
         return $attributes;
+    }
+    
+    public static function addReportFile($nome){
+        //self::$html_result .= _parser($file);
+    }
+    
+    public static function AddString($str){
+        self::$html_result .= $str;
+    }
+    
+    public static function newPage(){
+        self::$html_result .= "<jl_newpage>";
+    }
+    
+    public static function tagToHTML($tag, $objeto)
+    {
+        //--> obtem o conteúdo Html da tag relacionada no parâmetro
+        $tagHTML = self::getBlTag($tag);
+        
+        //--> realiza o replace do HTML pelas propriedades do objeto
+        eval('$temp = "' . addslashes($tagHTML) . '";');
+
+        //--> remove a tag passada da string
+        return self::removeHTMLTag($tag,$temp);;
+       
+    }
+    
+    public static function removeHTMLTag($tag, $string) {
+        // Constrói o padrão regex para a tag de abertura e fechamento a ser removida
+        $pattern = [
+            "/<$tag\b[^>]*>/i",    // Tag de abertura
+            "/<\/$tag>/i"          // Tag de fechamento
+        ];
+
+        // Remove as tags especificadas mantendo o conteúdo interno
+        return preg_replace($pattern, '', $string);
+    }
+    
+    
+    public static function addHtml($html){
+        self::$html_result .= $html;
+    }
+    
+    public static function commitReport(){
+        self::$template = self::$html_result;
+        self::processTemplate(self::$template, '', [], self::$pdf);
+    }
+    
+    public static function loopToHTML($tag, $objeto){
+        
+        $result = '';
+        $txtTag = $tag;
+        foreach ($objeto as $obj) {
+            $result .= self::tagToHTML($tag, $obj);
+        }
+        
+        return $result;
+        
     }
     
     /* FIM - Metodos JLPDF */
