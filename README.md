@@ -1,5 +1,6 @@
 # JLPDF
 Classe de extensão do TCPDF para facilitar a confecção de relatórios em PHP, especialmente para MadBuilder e Adianti Framework
+- Em breve soltaremos mais exemplos e tentaremos ser o mais didático possível, nos deem feedback, vamos melhorando com o tempo...
 
 # Sobre a licença
 Os detentores do JLPDF se reservam o direito de criar uma versão paga, utilizando todos e quaisquer recursos presentes na versão gratuita. Todas as contribuições são bem-vindas e serão registradas no GitHub (em caso de aprovação do PR), no entanto, a realização de uma contribuição não concede direitos autorais nem qualquer participação nos lucros da versão paga. Este texto foi inserido antes do lançamento da biblioteca (Lib), garantindo que todos os contribuidores tenham conhecimento desta cláusula desde o início.
@@ -8,8 +9,6 @@ Os detentores do JLPDF se reservam o direito de criar uma versão paga, utilizan
 * tecnickcom/tcpdf
 * chillerlan/php-qrcode
 * picqer/php-barcode-generator
-
-- Em breve soltaremos mais exemplos e tentaremos ser o mais didático possível, nos deem feedback, vamos melhorando com o tempo...
 
 # Instalação
 
