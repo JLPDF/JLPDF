@@ -14,6 +14,11 @@ CREATE TABLE jlpdf_bd(
       `font_family_default` varchar  (50)   NOT NULL    DEFAULT 'helvetica', 
       `fl_etiqueta` char  (1)     DEFAULT 'N', 
       `altura_doc` int   , 
+      `margin_top` int   , 
+      `margin_left` int   , 
+      `margin_right` int   , 
+      `file_template` char  (1)     DEFAULT 'N', 
+      `file_eval` char  (1)     DEFAULT 'N', 
  PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci; 
 
  
