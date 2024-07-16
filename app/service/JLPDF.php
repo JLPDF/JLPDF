@@ -24,7 +24,7 @@ class JLPDF extends TCPDF
     
     /* INICIO - Metodos JLPDF */
     
-    public function generatePDF($jlpdf_nm, $data = [])
+    public function generatePDF($jlpdf_nm, $data = [], $retornaHtmlApenas = false)
     {
         try {
              
@@ -32,7 +32,7 @@ class JLPDF extends TCPDF
             e garantido a integridade */
             self::sincronizarPdf($this);
             
-            self::$jl_loops_static = self::$pdf->jl_loops;
+            self::$jl_loops_static = self::$pdf->jl_loops ?? '';
             TTransaction::open(MAIN_DATABASE);
             
                 $jlpdf_bd = JlpdfBd::where('key_name', '=', $jlpdf_nm)->first();
@@ -42,6 +42,8 @@ class JLPDF extends TCPDF
                     // Tratar caso flag template_file esteja ativa
                     self::template_file($jlpdf_bd);
                     self::eval_file($jlpdf_bd);
+                    
+                    $this->setProtection(array('copy', 'modify'), '', null, 0, null);
                     
                     $jlpdf_bd->orientacao = !empty($jlpdf_bd->orientacao) ? $jlpdf_bd->orientacao : 'P';
                     $this->setPageOrientation($jlpdf_bd->orientacao);
@@ -66,6 +68,14 @@ class JLPDF extends TCPDF
                     $this->SetFooterMargin(PDF_MARGIN_FOOTER);
                     
                     // de($this::getMargins());
+                    
+                    if($retornaHtmlApenas === true){
+                        if(empty(self::$html_result)){
+                            return $html;
+                        } else {
+                            return self::$html_result;
+                        }
+                    }
                     
                     $manual_break = false;
                     if (strpos($html, '<jl_newpage>') !== false) {
@@ -151,6 +161,12 @@ class JLPDF extends TCPDF
             new TMessage('error', $e->getMessage());
             TTransaction::rollback();
         }
+    }
+    
+    public function generateHTML($jlpdf_nm, $data = []){
+        
+        return $this->generatePDF($jlpdf_nm, $data, true);
+        
     }
     
     public static function sincronizarPdf(&$pdf)
@@ -268,6 +284,7 @@ class JLPDF extends TCPDF
         
         // Processar rodapé
         if(!empty(self::$jlFooter)){
+            // de(self::$jlFooter);
             $pdf->setRodape(self::$jlFooter);
         } else {
             $pattern = '/<rodape>(.*?)<\/rodape>/s';
@@ -764,7 +781,7 @@ class JLPDF extends TCPDF
         self::$jlFooter = $html;
     }
     
-    public static function AddString($str){
+    public static function addString($str){
         self::$html_result .= $str;
     }
     
@@ -779,12 +796,27 @@ class JLPDF extends TCPDF
         
         //--> realiza o replace do HTML pelas propriedades do objeto
         eval('$temp = "' . addslashes($tagHTML) . '";');
-
+        
         //--> remove a tag passada da string
         return self::removeHTMLTag($tag,$temp);
        
     }
     
+    public static function addHtmlTag($tag) {
+      // Obtém o HTML com a tag especificada
+        $tagHTML = self::getBlTag($tag);
+        // Remove espaços extras e quebras de linha
+        $tagHTML = trim($tagHTML);
+        // Escapa caracteres especiais para uso em expressão regular
+        $tag = preg_quote($tag, '/');
+        // Define o padrão de regex para encontrar a tag e seu conteúdo
+        $pattern = '/<' . $tag . '>(.*?)<\/' . $tag . '>/si';
+        // Aplica a regex para encontrar a tag e seu conteúdo
+        preg_match($pattern, $tagHTML, $matches);
+        // Retorna o conteúdo encontrado dentro da tag
+        return isset($matches[1]) ? $matches[1] : '';
+    }
+
     public static function removeHTMLTag($tag, $string) {
         // Constrói o padrão regex para a tag de abertura e fechamento a ser removida
         $pattern = [
@@ -835,11 +867,19 @@ class JLPDF extends TCPDF
     }
     
     public function Footer() {
-        $this->writeHTML($this->footer_html, true, false, true, false, '');
+        // $this->writeHTML($this->footer_html, true, false, true, false, '');
+        if(!empty($this->footer_html_mb)){
+            $pageHeight = $this->getPageHeight();
+            $this->SetY($pageHeight - $this->footer_html_mb);
+        }
+        $this->writeHTMLCell(0, 0, '', '', $this->footer_html, 0, 0, 0, true, 'C', true);
     }
     
     public function setRodape($footerHtml){
         $this->footer_html = $footerHtml;
+    }
+    public function setRodapeMargem($margem){
+        $this->footer_html_mb = $margem;
     }
     
     /* FIM - Metodos TCPDF */
