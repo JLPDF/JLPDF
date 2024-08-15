@@ -1,5 +1,8 @@
 <?php
 
+/* 27/07/27 - Leonardo Maia*/
+/* Inclusão da função getHTML() que retorna o html processado*/
+
 use chillerlan\QRCode\{QRCode, QROptions};
 use chillerlan\QRCode\Common\EccLevel;
 use chillerlan\QRCode\Data\QRMatrix;
@@ -19,6 +22,9 @@ class JLPDF extends TCPDF
     private static $pdf = '';
     private static $jlHeader = '';
     private static $jlFooter = '';
+    private static $fl_processInclude = false;
+    private static $includeHTML_tmp = '';
+    private static $includeResult_tmp = '';
     
     /* NÃO PODE TER __CONSTRUCT, POIS CAUSA CONFLITO COM O __CONSTRUCT DO TCPDF */
     
@@ -238,8 +244,9 @@ class JLPDF extends TCPDF
             self::$template = str_replace('{$' . $key . '}', $value, self::$template);
         }
         
-        self::$template = str_replace('{pageNumberThis}', $pdf->getAliasNumPage(), self::$template);
-        self::$template = str_replace('{pageNumberQtd}', $pdf->getAliasNbPages(), self::$template);
+        // self::$template = str_replace('{pageNumberThis}', $pdf->getAliasNumPage(), self::$template);
+        // self::$template = str_replace('{pageNumberQtd}', $pdf->getAliasNbPages(), self::$template);
+        self::handlePagination(self::$template, $pdf);
         
         
         // de($pdf->jlpdf_bd);
@@ -284,7 +291,9 @@ class JLPDF extends TCPDF
         
         // Processar rodapé
         if(!empty(self::$jlFooter)){
-            // de(self::$jlFooter);
+            // self::$jlFooter = str_replace('{pageNumberThis}', $pdf->getAliasNumPage(), self::$jlFooter);
+            // self::$jlFooter = str_replace('{pageNumberQtd}', $pdf->getAliasNbPages(), self::$jlFooter);
+            self::handlePagination(self::$jlFooter, $pdf);
             $pdf->setRodape(self::$jlFooter);
         } else {
             $pattern = '/<rodape>(.*?)<\/rodape>/s';
@@ -333,6 +342,8 @@ class JLPDF extends TCPDF
     public static function processInclude($key_name, $processHeaderFooter = true)
     {
         
+        self::$fl_processInclude = true;
+        
         $obj_jlpdf_inc = JlpdfBd::where('key_name', '=', $key_name)->first();
         $template = $obj_jlpdf_inc->template;
         $codigo_eval = $obj_jlpdf_inc->codigo_eval;
@@ -341,8 +352,12 @@ class JLPDF extends TCPDF
         
         $const = 'constant';
         
+        self::$includeHTML_tmp = $template;
+        
         // Executar código de avaliação (cuidado com a segurança)
         eval($codigo_eval);
+        
+        $template = self::$includeResult_tmp;
         
         if(!empty($data)){
             // Extrair variáveis do array $data
@@ -364,17 +379,16 @@ class JLPDF extends TCPDF
             $template = str_replace('{$' . $key . '}', $value, $template);
         }
         
-        $template = str_replace('{pageNumberThis}', $pdf->getAliasNumPage(), $template);
-        $template = str_replace('{pageNumberQtd}', $pdf->getAliasNbPages(), $template);
+        // $template = str_replace('{pageNumberThis}', $pdf->getAliasNumPage(), $template);
+        // $template = str_replace('{pageNumberQtd}', $pdf->getAliasNbPages(), $template);
         
+        self::handlePagination($template, $pdf);
         
         // de($pdf->jlpdf_bd);
         $template = str_replace('{jl_logo}',
         $obj_jlpdf_inc->logo_img
         // $pdf->jlpdf_bd->logo_img
         , $template);
-        
-        
         
         
         // Processar QR Code
@@ -447,6 +461,8 @@ class JLPDF extends TCPDF
             }
             // de($template);
         }
+        
+        self::$fl_processInclude = false;
         
         return $template;
     }
@@ -581,7 +597,13 @@ class JLPDF extends TCPDF
     
     
     public static function getBlTag($blTag){
-        $template = self::$template;
+        if(empty(self::$fl_processInclude) or self::$fl_processInclude !== true){
+            $template = self::$template;
+        } else {
+            $template = self::$includeHTML_tmp;
+        }
+        
+        // $template = self::$template;
         
         $pattern = '/<' . $blTag . '(.*?)>(.*?)<\/' . $blTag . '>/s';
         preg_match_all($pattern, $template, $matches);
@@ -776,7 +798,8 @@ class JLPDF extends TCPDF
         return self::processInclude($nome, false);
     }
     
-    public static function setJlHeader($html){
+    public static function setJlHeader($html)
+    {
         self::$jlHeader = $html;
     }
     
@@ -795,17 +818,21 @@ class JLPDF extends TCPDF
     public static function tagToHTML($tag, $objeto)
     {
         //--> obtem o conteúdo Html da tag relacionada no parâmetro
+        // de($objeto);
+       
         $tagHTML = self::getBlTag($tag);
-        
+
         //--> realiza o replace do HTML pelas propriedades do objeto
         eval('$temp = "' . addslashes($tagHTML) . '";');
         
         //--> remove a tag passada da string
         return self::removeHTMLTag($tag,$temp);
-       
+        
+
     }
     
-    public static function addHtmlTag($tag) {
+    public static function addHtmlTag($tag) 
+    {
       // Obtém o HTML com a tag especificada
         $tagHTML = self::getBlTag($tag);
         // Remove espaços extras e quebras de linha
@@ -833,7 +860,11 @@ class JLPDF extends TCPDF
     
     
     public static function addHtml($html){
-        self::$html_result .= $html;
+        if(empty(self::$fl_processInclude) or self::$fl_processInclude !== true){
+            self::$html_result .= $html;
+        } else {
+            self::$includeResult_tmp .= $html;
+        }
     }
     
     public static function commitReport(){
@@ -852,20 +883,262 @@ class JLPDF extends TCPDF
         }
         
         return $result;
-        
     }
+        
+    public static function groupToHTML( $objetos, $campoGrupo, $ordenar, &$operacoes, &$linha, $reiniciarLinha, $template_grupo,  $template_detalhe,  $template_rodape) 
+    {
+        $htmlresult = '';
+
+        // Primeiro, organize os registros por grupo
+        $grupos = [];
+        foreach ($objetos as $objeto) 
+        {
+            $grupo = $objeto->$campoGrupo;
+            $grupos[$grupo][] = $objeto;
+        }
+    
+        // Ordenar os grupos se necessário
+        if ($ordenar) 
+        {
+            ksort($grupos);
+        }
+
+        // Funções de cálculo para SUM, AVG e COUNT
+        $funcoes = [
+            'SUM' => function($values) { return array_sum($values); },
+            'AVG' => function($values) { return count($values) > 0 ? array_sum($values) / count($values) : 0; },
+            'COUNT' => function($values) { return count($values); }
+        ];
+
+        // Array para armazenar os resultados dos grupos
+        $resultados = [];
+
+        // Array para armazenar os totais gerais das operações
+        $totaisGerais = [];
+
+        // Percorra os grupos e imprima o cabeçalho
+        foreach ($grupos as $grupo => $registros) 
+        {
+            if (isset($template_grupo) && !empty($template_grupo)) 
+            {
+                // Passa o primeiro objeto do grupo para o template do grupo
+                $htmlresult .= self::tagToHTML($template_grupo, $registros[0]);
+            }
+
+            // Reiniciar contagem de linha se necessário
+            if ($reiniciarLinha) 
+            {
+                $linha = 1;
+            }
+
+            // Objeto para armazenar os resultados das operações do grupo atual
+            $resultadoGrupo = new stdClass();
+
+            // Percorra os registros do grupo e imprima os detalhes
+            foreach ($registros as $registro) 
+            {
+                $registro->JL_LINE = $linha;
+                if (isset($template_detalhe) && !empty($template_detalhe)) 
+                {
+                    $htmlresult .= self::tagToHTML($template_detalhe, $registro);
+                }
+                $linha++;
+            }
+
+            // Realize e armazene as operações solicitadas para o grupo atual
+            if ($operacoes != null) 
+            {
+                foreach ($operacoes as $campo => $operacaoList) 
+                {
+                    foreach ($operacaoList as $operacao) 
+                    {
+                        if (isset($funcoes[$operacao])) 
+                        {
+                            $valores = array_map(function($registro) use ($campo) 
+                            {
+                                return $registro->$campo ?? 0;
+                            }, $registros);
+                            $resultado = $funcoes[$operacao]($valores);
+                            $field = $operacao . '_' . $campo;
+                            $resultadoGrupo->$field = $resultado;
+
+                            // Atualiza os totais gerais
+                            if (!isset($totaisGerais[$field])) 
+                            {
+                                $totaisGerais[$field] = 0;
+                            }
+                            $totaisGerais[$field] += $resultado;
+                        }
+                    }
+                }
+
+                if (isset($template_rodape) && !empty($template_rodape)) 
+                {
+                    $htmlresult .= self::tagToHTML($template_rodape, $resultadoGrupo);
+                }
+
+                $resultados[$grupo] = $resultadoGrupo;
+            }
+        }
+
+        // Atualiza o objeto de operações com os resultados dos grupos
+        $operacoes = $resultados;
+
+        // Adiciona os totais gerais ao objeto de operações
+        foreach ($totaisGerais as $campo => $total) 
+        {
+            $operacoes['total_' . $campo] = $total;
+        }
+        return $htmlresult;
+    }
+
+    /*
+    FUNÇÂO:? tabletoHTML
+    $objetos = [
+        (object)['grupo' => 'A', 'campo1' => 10, 'campo2' => 5],
+        (object)['grupo' => 'A', 'campo1' => 15, 'campo2' => 7],
+        (object)['grupo' => 'B', 'campo1' => 20, 'campo2' => 8],
+        (object)['grupo' => 'B', 'campo1' => 25, 'campo2' => 10]
+    ];
+
+    // Definindo as operações a serem realizadas
+    $operacoes = [
+        'campo1' => ['SUM', 'AVG'],
+        'campo2' => ['COUNT']
+    ];
+
+    // Definindo as colunas para cada grupo
+        $colunas = ['campo1', 'campo2'];
+    */
+    
+    
+ public static function tableToHTML($objetos, $campoGrupo, $colunas, $operacoes, $reiniciarLinha = false, $templateGrupo = '', $templateDetalhe = '', $templateRodape = '')
+    {
+        $htmlresult = '';
+        $grupos = [];
+        
+        // Organize os registros por grupo
+        foreach ($objetos as $objeto) 
+        {
+            $grupo = $objeto->$campoGrupo;
+            $grupos[$grupo][] = $objeto;
+        }
+        
+        // Inicialize variáveis para totais gerais
+        $totaisGerais = new stdClass();
+        foreach ($operacoes as $campo => $op) 
+        {
+            foreach ($op as $operacao) 
+            {
+                $totaisGerais->{$campo . '_' . $operacao} = 0;
+            }
+        }
+        
+        // Funções de cálculo
+        $funcoes = [
+            'SUM' => function($values) 
+            {
+                return array_sum($values);
+            },
+            'AVG' => function($values) 
+            {
+                return count($values) ? array_sum($values) / count($values) : 0;
+            },
+            'COUNT' => function($values) 
+            {
+                return count($values);
+            }
+        ];
+        
+        // Processa cada grupo
+        foreach ($grupos as $grupo => $registros) 
+        {
+            if ($templateGrupo) 
+            {
+                $htmlresult .= self::tagToHTML($templateGrupo, $registros[0]);
+            }
+            
+            $resultadosGrupo = new stdClass();
+            $linha = 1;
+    
+            // Processa cada registro no grupo
+            foreach ($registros as $registro) 
+            {
+                $registro->JL_LINE = $linha;
+                if ($templateDetalhe) 
+                {
+                    $htmlresult .= self::tagToHTML($templateDetalhe, $registro);
+                }
+                $linha++;
+            }
+            
+            // Calcula e adiciona os totais por grupo
+            foreach ($operacoes as $campo => $op) 
+            {
+                $valores = array_map(function($registro) use ($campo) 
+                {
+                    return $registro->$campo ?? 0;
+                }, $registros);
+    
+                foreach ($op as $operacao) 
+                {
+                    if (isset($funcoes[$operacao])) 
+                    {
+                        $resultado = $funcoes[$operacao]($valores);
+                        $field = $campo . '_' . $operacao;
+                        $resultadosGrupo->$field = $resultado;
+                        
+                        // Atualiza totais gerais
+                        $totaisGerais->$field += $resultado;
+                    }
+                }
+            }
+            
+            // Adiciona o rodapé do grupo
+            if ($templateRodape) 
+            {
+                $htmlresult .= self::tagToHTML($templateRodape, $resultadosGrupo);
+            }
+        }
+        
+        // Atualiza $operacoes com totais gerais
+        $operacoes = $totaisGerais;
+        
+        return $htmlresult;
+    }
+
+    
+    public function getHTML()
+    {
+        return self::$html_result;
+    }
+    
+    
+    public static function replaceVarTag(&$variable, $tag, $replaceTo){
+        $variable = str_replace($tag, $replaceTo, $variable);
+    }
+    
+    public static function handlePagination(&$variable, $pdf){
+        // $variable = str_replace('{pageNumberThis}', $pdf->getAliasNumPage(), $variable);
+        // $variable = str_replace('{pageNumberQtd}', $pdf->getAliasNbPages(), $variable);
+        self::replaceVarTag($variable, '{pageNumberThis}', $pdf->getAliasNumPage());
+        self::replaceVarTag($variable, '{pageNumberQtd}', $pdf->getAliasNbPages());
+    }
+    
     
     /* FIM - Metodos JLPDF */
     
     /* INICIO - Metodos TCPDF */
     
-    public function Header() {
+    public function Header() 
+    {
         // de($this->cabecalho_html);
         $this->writeHTMLCell(0, 0, '', '0', $this->cabecalho_html, 0, 0, 0, true, '', true);
         // $this->writeHTML($this->cabecalho_html, true, false, true, false, '');
     }
     
-    public function setCabecalho($cabecalho_html){
+    public function setCabecalho($cabecalho_html)
+    {
         $this->cabecalho_html = $cabecalho_html;
     }
     
