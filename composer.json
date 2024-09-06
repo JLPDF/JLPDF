@@ -1,0 +1,21 @@
+{
+    "name": "jlpdf/jlpdf",
+    "description": "Pacote para manipulação de PDFs",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Seu Nome",
+            "email": "seu-email@exemplo.com"
+        }
+    ],
+    "require": {
+        "chillerlan/php-qrcode": "^4.3",
+        "tecnickcom/tcpdf": "^6.6"
+    },
+    "autoload": {
+        "classmap": [
+            "./"  // Todas as classes na raiz do projeto
+        ]
+    }
+}
