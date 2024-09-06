@@ -15,7 +15,7 @@
     },
     "autoload": {
         "classmap": [
-            "./"  // Todas as classes na raiz do projeto
+            "./"
         ]
     }
 }
