@@ -1,4 +1,10 @@
 {
+    "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/jlpdf/jlpdf"
+    }
+  ],
     "name": "jlpdf/jlpdf",
     "description": "Pacote para manipulação de PDFs",
     "type": "library",
