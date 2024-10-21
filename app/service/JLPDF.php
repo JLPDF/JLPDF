@@ -874,12 +874,26 @@ class JLPDF extends TCPDF
         // return self::processTemplate(self::$template, '', [], self::$pdf);
     }
     
-    public static function loopToHTML($tag, $objeto){
+    public static function loopToHTML($tag, $objeto, $obj_param = null){
         
+        $fl_zebrado = !empty($obj_param->fl_zebrado) ? $obj_param->fl_zebrado : null;
+        
+        $i = 0;
         $result = '';
         $txtTag = $tag;
         foreach ($objeto as $obj) {
-            $result .= self::tagToHTML($tag, $obj);
+            if($fl_zebrado === true){
+
+                $zebrado_escuro = '#e3e3e3';
+                $zebrado_claro = '#FFF';
+                $cor_bkg = ((($i + 1) % 2) == 0) ? $zebrado_claro : $zebrado_escuro;
+        
+                $result .= str_replace('{cor_bkgTR}', (!empty($cor_bkg) ? $cor_bkg : ''), self::tagToHTML($tag, $obj));
+                
+            } else {
+                $result .= self::tagToHTML($tag, $obj);
+            }
+            $i++;
         }
         
         return $result;
