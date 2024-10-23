@@ -25,6 +25,7 @@ class JLPDF extends TCPDF
     private static $fl_processInclude = false;
     private static $includeHTML_tmp = '';
     private static $includeResult_tmp = '';
+    private static $i_para_zebrado = 0;
     
     /* NÃO PODE TER __CONSTRUCT, POIS CAUSA CONFLITO COM O __CONSTRUCT DO TCPDF */
     
@@ -497,7 +498,7 @@ class JLPDF extends TCPDF
         
                     $zebrado_escuro = '#e3e3e3';
                     $zebrado_claro = '#FFF';
-                    $cor_bkg = ((($i + 1) % 2) == 0) ? $zebrado_claro : $zebrado_escuro;
+                    $cor_bkg = (((self::$i_para_zebrado + 1) % 2) == 0) ? $zebrado_claro : $zebrado_escuro;
             
                     $temp = str_replace('{cor_bkgTR}', (!empty($cor_bkg) ? $cor_bkg : ''), $temp);
                     
@@ -505,6 +506,7 @@ class JLPDF extends TCPDF
                 
                 $loop_template .= $temp;
                 $i++;
+		self::$i_para_zebrado++;
                 
                 // $loop_template = '';
             }
@@ -521,7 +523,7 @@ class JLPDF extends TCPDF
         
                     $zebrado_escuro = '#e3e3e3';
                     $zebrado_claro = '#FFF';
-                    $cor_bkg = ((($i + 1) % 2) == 0) ? $zebrado_claro : $zebrado_escuro;
+                    $cor_bkg = (((self::$i_para_zebrado + 1) % 2) == 0) ? $zebrado_claro : $zebrado_escuro;
             
                     $temp = str_replace('{cor_bkgTR}', (!empty($cor_bkg) ? $cor_bkg : ''), $temp);
                     
@@ -529,6 +531,7 @@ class JLPDF extends TCPDF
                 
                 $loop_template .= $temp;
                 $i++;
+		self::$i_para_zebrado++;
             }
             
                 
@@ -886,7 +889,7 @@ class JLPDF extends TCPDF
 
                 $zebrado_escuro = '#e3e3e3';
                 $zebrado_claro = '#FFF';
-                $cor_bkg = ((($i + 1) % 2) == 0) ? $zebrado_claro : $zebrado_escuro;
+                $cor_bkg = (((self::$i_para_zebrado + 1) % 2) == 0) ? $zebrado_claro : $zebrado_escuro;
         
                 $result .= str_replace('{cor_bkgTR}', (!empty($cor_bkg) ? $cor_bkg : ''), self::tagToHTML($tag, $obj));
                 
@@ -894,6 +897,7 @@ class JLPDF extends TCPDF
                 $result .= self::tagToHTML($tag, $obj);
             }
             $i++;
+            self::$i_para_zebrado++;
         }
         
         return $result;
