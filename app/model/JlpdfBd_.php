@@ -4,7 +4,7 @@
 
 //</fileHeader>
 
-class JlpdfBd extends TRecord
+class JlpdfBd_ extends TRecord
 {
     const TABLENAME  = 'jlpdf_bd';
     const PRIMARYKEY = 'id';
