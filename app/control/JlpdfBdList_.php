@@ -4,7 +4,7 @@
 
 //</fileHeader>
 
-class JlpdfBdList extends TPage
+class JlpdfBdList_ extends TPage
 {
     private $form; // form
     private $datagrid; // listing
