@@ -1,6 +1,6 @@
 <?php
 
-class JlpdfBdForm extends TPage
+class JlpdfBdForm_ extends TPage
 {
     protected $form;
     private $formFields = [];
