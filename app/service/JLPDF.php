@@ -104,6 +104,7 @@ class JLPDF extends TCPDF
                             
                             if($i > 0){
                                 $this->AddPage($orientacao , array($size, 30));
+                                $this->insertJlBackgroundImg();
                             
                                 // de($page);
                             }
@@ -120,6 +121,7 @@ class JLPDF extends TCPDF
                             $this->SetAutoPageBreak(false, 0);
                             
                             $this->AddPage($orientacao , array($size, 3276));
+                            // $this->insertJlBackgroundImg();
                 
                             $this->writeHTML($html, true, false, true, false, '');
                             
@@ -127,12 +129,14 @@ class JLPDF extends TCPDF
                             
                             $this->deletePage(1); // Remova a página original para redefinir a altura
                             $this->AddPage($orientacao, array($size, $page_height)); // Adicione uma nova página com a altura ajustada
+                            // $this->insertJlBackgroundImg();
                             
                             $this->writeHTML($html, true, false, true, false, '');
                         } else {
                             if(!$manual_break){
                                 $this->setPageFormat($size, $orientacao);
                                 $this->AddPage();
+                                $this->insertJlBackgroundImg();
                                 $this->writeHTML($html, true, false, true, false, '');
                             } else {
                                 // de($arr_page);
@@ -141,6 +145,7 @@ class JLPDF extends TCPDF
                                 foreach($arr_page as $page){
                                     if($i > 0){
                                         $this->AddPage();
+                                        $this->insertJlBackgroundImg();
                                     }
                         
                                     $this->writeHTML($page, true, false, true, false, '');
@@ -1142,6 +1147,231 @@ class JLPDF extends TCPDF
         self::replaceVarTag($variable, '{pageNumberThis}', $pdf->getAliasNumPage());
         self::replaceVarTag($variable, '{pageNumberQtd}', $pdf->getAliasNbPages());
     }
+
+    /**
+         * Define a imagem de fundo para o PDF com opções de personalização.
+         *
+         * @param string $path Caminho para a imagem de fundo.
+         * @param float|null $x Posição horizontal (mm) da imagem. Padrão: 0.
+         * @param float|null $y Posição vertical (mm) da imagem. Padrão: 0.
+         * @param float|null $width Largura da imagem em mm. Padrão: largura da página.
+         * @param float|null $height Altura da imagem em mm. Padrão: altura da página.
+         * @param float $opacity Opacidade da imagem (0 a 1). Padrão: 1 (totalmente opaco).
+         * @throws Exception Se a imagem não for encontrada ou opacidade inválida.
+         */
+        public static function setJlBackgroundImg($path, $x = null, $y = null, $width = null, $height = null, $opacity = 1.0)
+        {
+            if (!file_exists($path)) {
+                throw new Exception("Imagem de fundo não encontrada: " . $path);
+            }
+    
+            if (!is_numeric($opacity) || $opacity < 0 || $opacity > 1) {
+                throw new Exception("Opacidade inválida. Deve ser um valor entre 0 e 1.");
+            }
+    
+            self::$jlBackgroundImg = [
+                'path' => $path,
+                'x' => $x,
+                'y' => $y,
+                'width' => $width,
+                'height' => $height,
+                'opacity' => $opacity
+            ];
+        }
+    
+        /**
+         * Insere a imagem de fundo na página atual se estiver definida, com opacidade personalizada.
+         *
+         * @param float|null $x Posição horizontal (mm) da imagem. Padrão: valores definidos em setJlBackgroundImg ou 0.
+         * @param float|null $y Posição vertical (mm) da imagem. Padrão: valores definidos em setJlBackgroundImg ou 0.
+         * @param float|null $width Largura da imagem em mm. Padrão: largura da página ou valor definido em setJlBackgroundImg.
+         * @param float|null $height Altura da imagem em mm. Padrão: altura da página ou valor definido em setJlBackgroundImg.
+         * @throws Exception Se houver problemas ao inserir a imagem.
+         */
+        public function insertJlBackgroundImg($x = null, $y = null, $width = null, $height = null)
+        {
+            if (self::$jlBackgroundImg !== null) {
+                // Utilize os valores passados ou os definidos em setJlBackgroundImg
+                $x = $x !== null ? $x : (self::$jlBackgroundImg['x'] ?? 0);
+                $y = $y !== null ? $y : (self::$jlBackgroundImg['y'] ?? 0);
+                $width = $width !== null ? $width : (self::$jlBackgroundImg['width'] ?? $this->getPageWidth());
+                $height = $height !== null ? $height : (self::$jlBackgroundImg['height'] ?? $this->getPageHeight());
+                $opacity = self::$jlBackgroundImg['opacity'] ?? 1.0;
+    
+                // Opcional: Verificar se os parâmetros são válidos
+                if (!is_numeric($x) || !is_numeric($y) || !is_numeric($width) || !is_numeric($height) || !is_numeric($opacity)) {
+                    throw new Exception("Parâmetros inválidos fornecidos para insertJlBackgroundImg.");
+                }
+    
+                // Se opacidade for 1, insira a imagem normalmente
+                if ($opacity == 1.0) {
+                    $this->Image(
+                        self::$jlBackgroundImg['path'],
+                        $x,
+                        $y,
+                        $width,
+                        $height,
+                        '',     // Tipo da imagem. Deixe vazio para autodetectar
+                        '',     // Link da imagem. Deixe vazio se não houver
+                        '',     // Fixo ou ajustável. Deixe vazio para padrão
+                        false,  // Suprimir bordas
+                        300,    // Resolução
+                        '',     // String de referência
+                        false,  // Ignorar restrições de posição
+                        false,  // Redimensionar a imagem
+                        0       // Altura da barra de transparência
+                    );
+                } else {
+                    // Ajustar a opacidade usando a função auxiliar
+                    $tempImagePath = $this->adjustImageOpacity(self::$jlBackgroundImg['path'], $opacity);
+    
+                    // Inserir a imagem ajustada
+                    $this->Image(
+                        $tempImagePath,
+                        $x,
+                        $y,
+                        $width,
+                        $height,
+                        '',     // Tipo da imagem. Deixe vazio para autodetectar
+                        '',     // Link da imagem. Deixe vazio se não houver
+                        '',     // Fixo ou ajustável. Deixe vazio para padrão
+                        false,  // Suprimir bordas
+                        300,    // Resolução
+                        '',     // String de referência
+                        false,  // Ignorar restrições de posição
+                        false,  // Redimensionar a imagem
+                        0       // Altura da barra de transparência
+                    );
+    
+                    // Remover o arquivo temporário
+                    if (file_exists($tempImagePath)) {
+                        unlink($tempImagePath);
+                    }
+                }
+            }
+        }
+    
+        /**
+         * Ajusta a opacidade de uma imagem e retorna o caminho para a imagem temporária ajustada.
+         *
+         * @param string $path Caminho para a imagem original.
+         * @param float $opacity Opacidade desejada (0 a 1).
+         * @return string Caminho para a imagem temporária com opacidade ajustada.
+         * @throws Exception Se houver problemas ao ajustar a opacidade.
+         */
+        private function adjustImageOpacity($path, $opacity)
+        {
+            // Verificar se a extensão GD está habilitada
+            if (!extension_loaded('gd')) {
+                throw new Exception("A extensão GD não está habilitada no PHP.");
+            }
+    
+            // Obter informações da imagem
+            $imageInfo = getimagesize($path);
+            if (!$imageInfo) {
+                throw new Exception("Não foi possível obter as informações da imagem: " . $path);
+            }
+    
+            $mime = $imageInfo['mime'];
+            switch ($mime) {
+                case 'image/jpeg':
+                    $image = imagecreatefromjpeg($path);
+                    break;
+                case 'image/png':
+                    $image = imagecreatefrompng($path);
+                    break;
+                case 'image/gif':
+                    $image = imagecreatefromgif($path);
+                    break;
+                default:
+                    throw new Exception("Formato de imagem não suportado para opacidade: " . $mime);
+            }
+    
+            if (!$image) {
+                throw new Exception("Não foi possível criar a imagem a partir do arquivo: " . $path);
+            }
+    
+            // Obter dimensões
+            $width = imagesx($image);
+            $height = imagesy($image);
+    
+            // Criar uma nova imagem com transparência
+            $newImage = imagecreatetruecolor($width, $height);
+    
+            // Ativar a transparência para PNG e GIF
+            if ($mime == 'image/png' || $mime == 'image/gif') {
+                imagealphablending($newImage, false);
+                imagesavealpha($newImage, true);
+                $transparent = imagecolorallocatealpha($newImage, 0, 0, 0, 127);
+                imagefilledrectangle($newImage, 0, 0, $width, $height, $transparent);
+            } else {
+                // Para JPEG, que não suporta transparência, preencher com branco
+                $white = imagecolorallocate($newImage, 255, 255, 255);
+                imagefilledrectangle($newImage, 0, 0, $width, $height, $white);
+            }
+    
+            // Copiar a imagem original para a nova imagem
+            imagecopy($newImage, $image, 0, 0, 0, 0, $width, $height);
+    
+            // Ajustar a opacidade
+            if ($mime == 'image/png' || $mime == 'image/gif') {
+                // Para imagens com transparência
+                for ($yCoord = 0; $yCoord < $height; $yCoord++) {
+                    for ($xCoord = 0; $xCoord < $width; $xCoord++) {
+                        $rgba = imagecolorat($newImage, $xCoord, $yCoord);
+                        $alpha = ($rgba & 0x7F000000) >> 24;
+                        $alpha = 127 - min(127, floor($alpha * $opacity));
+                        $color = imagecolorsforindex($newImage, $rgba);
+                        $newColor = imagecolorallocatealpha($newImage, $color['red'], $color['green'], $color['blue'], $alpha);
+                        if ($newColor === false) {
+                            $newColor = imagecolorclosestalpha($newImage, $color['red'], $color['green'], $color['blue'], $alpha);
+                        }
+                        imagesetpixel($newImage, $xCoord, $yCoord, $newColor);
+                    }
+                }
+            } else {
+                // Para imagens sem transparência, simular opacidade sobre branco
+                for ($yCoord = 0; $yCoord < $height; $yCoord++) {
+                    for ($xCoord = 0; $xCoord < $width; $xCoord++) {
+                        $rgb = imagecolorat($newImage, $xCoord, $yCoord);
+                        $r = ($rgb >> 16) & 0xFF;
+                        $g = ($rgb >> 8) & 0xFF;
+                        $b = $rgb & 0xFF;
+    
+                        // Mesclar com branco
+                        $r = $r * $opacity + 255 * (1 - $opacity);
+                        $g = $g * $opacity + 255 * (1 - $opacity);
+                        $b = $b * $opacity + 255 * (1 - $opacity);
+    
+                        $newColor = imagecolorallocate($newImage, $r, $g, $b);
+                        if ($newColor === false) {
+                            $newColor = imagecolorclosest($newImage, $r, $g, $b);
+                        }
+                        imagesetpixel($newImage, $xCoord, $yCoord, $newColor);
+                    }
+                }
+            }
+    
+            // Salvar a imagem com a opacidade ajustada para um arquivo temporário
+            $tempPath = tempnam(sys_get_temp_dir(), 'jlpdf_bg_');
+            switch ($mime) {
+                case 'image/jpeg':
+                    imagejpeg($newImage, $tempPath, 100);
+                    break;
+                case 'image/png':
+                    imagepng($newImage, $tempPath);
+                    break;
+                case 'image/gif':
+                    imagegif($newImage, $tempPath);
+                    break;
+            }
+    
+            // Liberar memória
+            imagedestroy($image);
+            imagedestroy($newImage);
+    
+            return $tempPath;
+        }
     
     
     /* FIM - Metodos JLPDF */
