@@ -105,7 +105,9 @@ class JLPDF extends TCPDF
                             
                             if($i > 0){
                                 $this->AddPage($orientacao , array($size, 30));
-                                $this->insertJlBackgroundImg();
+                                if(empty(self::$jlHeader)){
+                                    $this->insertJlBackgroundImg();
+                                }
                             
                                 // de($page);
                             }
@@ -122,7 +124,9 @@ class JLPDF extends TCPDF
                             $this->SetAutoPageBreak(false, 0);
                             
                             $this->AddPage($orientacao , array($size, 3276));
-                            // $this->insertJlBackgroundImg();
+                            if(empty(self::$jlHeader)){
+                                $this->insertJlBackgroundImg();
+                            }
                 
                             $this->writeHTML($html, true, false, true, false, '');
                             
@@ -130,14 +134,18 @@ class JLPDF extends TCPDF
                             
                             $this->deletePage(1); // Remova a página original para redefinir a altura
                             $this->AddPage($orientacao, array($size, $page_height)); // Adicione uma nova página com a altura ajustada
-                            // $this->insertJlBackgroundImg();
+                            if(empty(self::$jlHeader)){
+                                $this->insertJlBackgroundImg();
+                            }
                             
                             $this->writeHTML($html, true, false, true, false, '');
                         } else {
                             if(!$manual_break){
                                 $this->setPageFormat($size, $orientacao);
                                 $this->AddPage();
-                                $this->insertJlBackgroundImg();
+                                if(empty(self::$jlHeader)){
+                                    $this->insertJlBackgroundImg();
+                                }
                                 $this->writeHTML($html, true, false, true, false, '');
                             } else {
                                 // de($arr_page);
@@ -146,7 +154,9 @@ class JLPDF extends TCPDF
                                 foreach($arr_page as $page){
                                     if($i > 0){
                                         $this->AddPage();
-                                        $this->insertJlBackgroundImg();
+                                        if(empty(self::$jlHeader)){
+                                            $this->insertJlBackgroundImg();
+                                        }
                                     }
                         
                                     $this->writeHTML($page, true, false, true, false, '');
@@ -1193,61 +1203,48 @@ class JLPDF extends TCPDF
         {
             if (self::$jlBackgroundImg !== null) {
                 // Utilize os valores passados ou os definidos em setJlBackgroundImg
-                $x = $x !== null ? $x : (self::$jlBackgroundImg['x'] ?? 0);
-                $y = $y !== null ? $y : (self::$jlBackgroundImg['y'] ?? 0);
                 $width = $width !== null ? $width : (self::$jlBackgroundImg['width'] ?? $this->getPageWidth());
                 $height = $height !== null ? $height : (self::$jlBackgroundImg['height'] ?? $this->getPageHeight());
+                $x = $x !== null ? $x : (($this->getPageWidth() - $width) / 2);
+                $y = $y !== null ? $y : (($this->getPageHeight() - $height) / 2);
                 $opacity = self::$jlBackgroundImg['opacity'] ?? 1.0;
-    
-                // Opcional: Verificar se os parâmetros são válidos
+        
                 if (!is_numeric($x) || !is_numeric($y) || !is_numeric($width) || !is_numeric($height) || !is_numeric($opacity)) {
                     throw new Exception("Parâmetros inválidos fornecidos para insertJlBackgroundImg.");
                 }
-    
-                // Se opacidade for 1, insira a imagem normalmente
-                if ($opacity == 1.0) {
-                    $this->Image(
-                        self::$jlBackgroundImg['path'],
-                        $x,
-                        $y,
-                        $width,
-                        $height,
-                        '',     // Tipo da imagem. Deixe vazio para autodetectar
-                        '',     // Link da imagem. Deixe vazio se não houver
-                        '',     // Fixo ou ajustável. Deixe vazio para padrão
-                        false,  // Suprimir bordas
-                        300,    // Resolução
-                        '',     // String de referência
-                        false,  // Ignorar restrições de posição
-                        false,  // Redimensionar a imagem
-                        0       // Altura da barra de transparência
-                    );
-                } else {
-                    // Ajustar a opacidade usando a função auxiliar
+        
+                if ($opacity < 1.0) {
+                    // Ajustar a opacidade se necessário
                     $tempImagePath = $this->adjustImageOpacity(self::$jlBackgroundImg['path'], $opacity);
-    
-                    // Inserir a imagem ajustada
-                    $this->Image(
-                        $tempImagePath,
-                        $x,
-                        $y,
-                        $width,
-                        $height,
-                        '',     // Tipo da imagem. Deixe vazio para autodetectar
-                        '',     // Link da imagem. Deixe vazio se não houver
-                        '',     // Fixo ou ajustável. Deixe vazio para padrão
-                        false,  // Suprimir bordas
-                        300,    // Resolução
-                        '',     // String de referência
-                        false,  // Ignorar restrições de posição
-                        false,  // Redimensionar a imagem
-                        0       // Altura da barra de transparência
-                    );
-    
-                    // Remover o arquivo temporário
-                    if (file_exists($tempImagePath)) {
-                        unlink($tempImagePath);
-                    }
+                } else {
+                    $tempImagePath = self::$jlBackgroundImg['path'];
+                }
+                
+                // Ajustar o valor de Y para começar abaixo do cabeçalho
+                $y = $y !== null ? $y : ($this->getHeaderMargin());
+        
+                // Inserir a imagem ajustada
+                $this->Image(
+                    $tempImagePath,
+                    $x,
+                    $y,
+                    $width,
+                    $height,
+                    '',     // Tipo da imagem. Deixe vazio para autodetectar
+                    '',     // Link da imagem. Deixe vazio se não houver
+                    '',     // Fixo ou ajustável. Deixe vazio para padrão
+                    false,  // Suprimir bordas
+                    300,    // Resolução
+                    '',     // String de referência
+                    false,  // Ignorar restrições de posição
+                    false,  // Redimensionar a imagem
+                    0       // Altura da barra de transparência
+                );
+                $this->setPageMark();
+        
+                // Remover o arquivo temporário, se aplicável
+                if ($opacity < 1.0 && file_exists($tempImagePath)) {
+                    unlink($tempImagePath);
                 }
             }
         }
@@ -1381,6 +1378,10 @@ class JLPDF extends TCPDF
     
     public function Header() 
     {
+        // Chame a função de inserção da imagem de fundo aqui se necessário
+        if (self::$jlBackgroundImg !== null) {
+            $this->insertJlBackgroundImg(); // Adicione a imagem antes de inserir o cabeçalho, se necessário
+        }
         // de($this->cabecalho_html);
         $this->writeHTMLCell(0, 0, '', '0', $this->cabecalho_html, 0, 0, 0, true, '', true);
         // $this->writeHTML($this->cabecalho_html, true, false, true, false, '');
