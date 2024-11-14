@@ -26,6 +26,7 @@ class JLPDF extends TCPDF
     private static $includeHTML_tmp = '';
     private static $includeResult_tmp = '';
     private static $i_para_zebrado = 0;
+    private static $jlBackgroundImg = null;
     
     /* NÃO PODE TER __CONSTRUCT, POIS CAUSA CONFLITO COM O __CONSTRUCT DO TCPDF */
     
