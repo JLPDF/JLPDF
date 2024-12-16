@@ -267,7 +267,10 @@ class JLPDF extends TCPDF
         
         
         // de($pdf->jlpdf_bd);
-        self::$template = str_replace('{jl_logo}', $pdf->jlpdf_bd->logo_img, self::$template);
+        $logo_img = ($pdf->jlpdf_bd->logo_img ?? '');
+        if(!empty($logo_img)){
+            self::$template = str_replace('{jl_logo}', $logo_img, self::$template);
+        }
         
         
         
